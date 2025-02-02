@@ -7,7 +7,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export async function uploadOnCloudinary(localFilePath) {
+async function uploadOnCloudinary(localFilePath) {
   try {
     if (!localFilePath) throw new Error("File path not found!");
 
@@ -18,8 +18,13 @@ export async function uploadOnCloudinary(localFilePath) {
 
     console.log(
       "File uploaded successfully on cloudinary!",
-      fileUploadResponse
+      fileUploadResponse?.url
     );
+
+    if (fileUploadResponse) {
+      console.log("Unlinking file from server...")
+      fs.unlinkSync(localFilePath);
+    }
     return fileUploadResponse;
   } catch (error) {
     // if file upload operation fails then remove temporary file from server
@@ -27,3 +32,5 @@ export async function uploadOnCloudinary(localFilePath) {
     throw new Error(error.message);
   }
 }
+
+export { uploadOnCloudinary };

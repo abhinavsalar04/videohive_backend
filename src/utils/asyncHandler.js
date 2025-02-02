@@ -11,9 +11,8 @@ export function asyncHandler(requestHandler) {
   };
 }
 
-export function asyncHandlerUsingPromise(requestHandler) {
-  
-    /**
+export function promiseHandler(requestHandler) {
+  /**
   * This type of Promise handle handles both promise & non-promise value.
   * It create a wrapper - for non-promise value it wraps them in a new prmise
     but for promise value then it uses them directly. In either case it retuns the

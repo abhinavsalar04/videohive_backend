@@ -1,6 +1,6 @@
-export const DB_NAME = "VideoHive";
+const DB_NAME = "VideoHive";
 
-export const getDefaultErrorMessage = (statusCode) => {
+const getDefaultErrorMessage = (statusCode) => {
   const DEFAULT_ERROR_MESSAGES = {
     "100-199": "Processing request",
     "200-299": "Request completed",
@@ -21,3 +21,5 @@ export const getDefaultErrorMessage = (statusCode) => {
     return DEFAULT_ERROR_MESSAGES["500-599"];
   }
 };
+
+export { DB_NAME, getDefaultErrorMessage };
