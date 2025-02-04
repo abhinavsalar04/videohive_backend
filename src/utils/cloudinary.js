@@ -16,15 +16,7 @@ async function uploadOnCloudinary(localFilePath) {
       resource_type: "auto", // detect file type from file
     });
 
-    console.log(
-      "File uploaded successfully on cloudinary!",
-      fileUploadResponse?.url
-    );
-
-    if (fileUploadResponse) {
-      console.log("Unlinking file from server...")
-      fs.unlinkSync(localFilePath);
-    }
+    fs.unlinkSync(localFilePath);
     return fileUploadResponse;
   } catch (error) {
     // if file upload operation fails then remove temporary file from server

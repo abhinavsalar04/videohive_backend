@@ -16,7 +16,6 @@ const registerUser = asyncHandler(async (req, res, next) => {
    *
    */
   const { email, username, fullName, password } = req.body;
-  console.log(email, username, password, fullName);
   if (
     [email, username, fullName, password]?.some(
       (field) => !field || field.trim() === ""
@@ -29,11 +28,15 @@ const registerUser = asyncHandler(async (req, res, next) => {
     $or: [{ email }, { username }],
   });
   if (isUserExists) {
+    console.log("User already exists!");
     throw new APIError(409, "User already exists!");
   }
 
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
+  const coverImageLocalPath =
+    req.files?.coverImage && Array.isArray(req.files?.coverImage)
+      ? req.files?.coverImage?.[0]?.path
+      : req.files?.coverImage?.path || null; // if the field contains single file multer.single("file_path") => path = "string"
 
   if (!avatarLocalPath) {
     throw new APIError(400, "Avatar file is required!");
@@ -56,7 +59,9 @@ const registerUser = asyncHandler(async (req, res, next) => {
     password,
     fullName,
     avatar: avatarCloudinaryResponse?.url,
-    coverImage: coverImageCloudinaryResponse?.url || "",
+    coverImage: coverImageCloudinaryResponse
+      ? coverImageCloudinaryResponse?.url
+      : "",
   });
 
   const createdUser = await User.findById(user?._id).select(
