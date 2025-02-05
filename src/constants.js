@@ -22,4 +22,9 @@ const getDefaultErrorMessage = (statusCode) => {
   }
 };
 
-export { DB_NAME, getDefaultErrorMessage };
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true
+}
+
+export {COOKIE_OPTIONS,  DB_NAME, getDefaultErrorMessage };

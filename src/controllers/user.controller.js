@@ -3,8 +3,23 @@ import { APIError } from "../utils/APIError.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { APIResponse } from "../utils/APIResponse.js";
+import { COOKIE_OPTIONS } from "../constants.js";
 
-const registerUser = asyncHandler(async (req, res, next) => {
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const registerUser = asyncHandler(async (req, res) => {
   /**
    * check if req.body contains all required fields (username, email, password, fullName, avatar)
    * check is username or email is already taken
@@ -77,4 +92,63 @@ const registerUser = asyncHandler(async (req, res, next) => {
     .json(new APIResponse(200, "User registered successfully!", createdUser));
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  /**
+   * Get data fromm req.body - username, email, password
+   * username or email fields should not be empty
+   * check whether user exists with username or email
+   * Verify password
+   * generate access, refresh token and save refresh token in db
+   * return logged in user info along with accessToken.
+   */
+
+  const { username, email, password } = req.body;
+  if ((!email && !username) || !password) {
+    throw new APIError(400, "Email/Username and password are required.");
+  }
+
+  const user = await User.findOne({
+    $or: [{ email }, { username }],
+  });
+
+  if (!user) {
+    throw new APIError(401, "User does not exists!");
+  }
+  
+  const isValidUser = await user.isPasswordCorrect(password);
+  if (!isValidUser) {
+    throw new APIError(401, "Invalid user crednetials!");
+  }
+
+  const { accessToken, refreshToken } = generateAccessAndRefreshToken(
+    user?._id
+  );
+
+  // this user object does not have refreshToken
+  // user is mongodb document not a plain js object. The value inside filteredUserData will be - [ '$__', '$isNew', '_doc' ] _doc contains the actual fields.
+  // const filteredUserData = Object.keys(user)?.filter(
+  //   (key) => key !== "password" && key !== "refreshToken"
+  // );
+  const userObject = user.toObject();
+  delete userObject.password;
+  delete userObject.refreshToken;
+  
+  console.log("User logged in successfully: ", userObject);
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, COOKIE_OPTIONS)
+    .cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
+    .json(
+      new APIResponse(
+        200,
+        {
+          user: userObject,
+          accessToken,
+          refreshToken,
+        },
+        "User logged in successfully!"
+      )
+    );
+});
+
+export { registerUser, loginUser };
