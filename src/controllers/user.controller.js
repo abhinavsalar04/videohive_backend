@@ -12,6 +12,7 @@ const generateAccessAndRefreshToken = async (userId) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
+
     await user.save({ validateBeforeSave: false });
     return { accessToken, refreshToken };
   } catch (error) {
@@ -114,13 +115,13 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!user) {
     throw new APIError(401, "User does not exists!");
   }
-  
+
   const isValidUser = await user.isPasswordCorrect(password);
   if (!isValidUser) {
     throw new APIError(401, "Invalid user crednetials!");
   }
 
-  const { accessToken, refreshToken } = generateAccessAndRefreshToken(
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
     user?._id
   );
 
@@ -132,7 +133,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const userObject = user.toObject();
   delete userObject.password;
   delete userObject.refreshToken;
-  
+
   console.log("User logged in successfully: ", userObject);
   return res
     .status(200)
@@ -151,4 +152,26 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, loginUser };
+const logoutUser = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndUpdate(
+    req?.user?._id,
+    {
+      $unset: {
+        refreshToken: 1,
+      },
+    },
+    { new: true }
+  );
+
+  if (!user) {
+    throw new APIError(500, "Internal server error");
+  }
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", COOKIE_OPTIONS)
+    .clearCookie("refreshToken", COOKIE_OPTIONS)
+    .json(new APIResponse(200, "User logged out successfully!"));
+});
+
+export { registerUser, loginUser, logoutUser };
