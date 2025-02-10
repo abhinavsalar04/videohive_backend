@@ -210,9 +210,56 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         })
       );
   } catch (error) {
-    console.log(error)
+    console.log(error);
     throw new APIError(401, error?.message);
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req?.body;
+
+  if (!oldPassword || !newPassword) {
+    throw new APIError(400, "Old password or new password is missing!");
+  }
+
+  const user = await User.findById(req?.user?._id);
+  if (!user) {
+    throw new APIError(403, "Unauthorized access!");
+  }
+
+  const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if (!isOldPasswordCorrect) {
+    throw new APIError(400, "Incorrect old password!");
+  }
+
+  user.password = newPassword;
+
+  if (!updatedUser) {
+    throw new APIError(500, "Internal server error");
+  }
+
+  return res
+    .status(200)
+    .json(new APIResponse(200, "Password changed successfully!"));
+});
+
+const getActiveUser = asyncHandler(async (req, res) => {
+  const user = req?.user;
+  return res
+    .status(200)
+    .json(
+      new APIResponse(200, "Active user details fetched successfully!", {
+        user,
+      })
+    );
+});
+
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getActiveUser,
+};
