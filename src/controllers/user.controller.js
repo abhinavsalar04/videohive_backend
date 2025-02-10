@@ -254,6 +254,35 @@ const getActiveUser = asyncHandler(async (req, res) => {
   );
 });
 
+const updateUser = asyncHandler(async (req, res) => {
+  const { fullName, email } = req?.body;
+
+  if (!fullName || !email) {
+    throw new APIError(400, "Full name or email is missing!");
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) {
+    throw new APIError(500, "Unable to update user account!");
+  }
+
+  return res.status(200).json(
+    new APIResponse(200, "User updated successfully!", {
+      user: updatedUser,
+    })
+  );
+});
+
 
 export {
   registerUser,
@@ -261,5 +290,6 @@ export {
   logoutUser,
   refreshAccessToken,
   changeCurrentPassword,
-  getActiveUser
+  getActiveUser,
+  updateUser
 };
