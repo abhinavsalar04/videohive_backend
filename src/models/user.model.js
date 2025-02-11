@@ -58,7 +58,7 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-//  we can access these methods using model 
+//  we can access these methods using model
 userSchema.methods.isPasswordCorrect = async function (password) {
   // fisrt argument plane password, second argument hashed password
   return await bcrypt.compare(password, this.password);

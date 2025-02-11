@@ -1,10 +1,34 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIError } from "../utils/APIError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  removeFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 import { APIResponse } from "../utils/APIResponse.js";
 import { COOKIE_OPTIONS } from "../constants.js";
 import jwt from "jsonwebtoken";
+
+function getPublicIdFromUrl(url) {
+  if (!url) return "";
+  return url?.split("/")?.pop()?.toString()?.split(".")?.[0];
+}
+
+/**
+ *
+ * @param {Object(MongoDBInstance)} userDBInstance
+ * @param {Array} fieldsToRemove
+ * @returns {Object} filteredUser object
+ */
+function removeFieldsFromObject(userDBInstance, fieldsToRemove) {
+  const userObject = userDBInstance.toObject();
+  const filteredUserObject = {};
+  for (const key in userObject) {
+    if (!fieldsToRemove?.includes(key))
+      filteredUserObject[key] = userObject[key];
+  }
+  return filteredUserObject;
+}
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -76,13 +100,15 @@ const registerUser = asyncHandler(async (req, res) => {
     password,
     fullName,
     avatar: avatarCloudinaryResponse?.url,
+    avatarPublicId: avatarCloudinaryResponse?.public_id,
     coverImage: coverImageCloudinaryResponse
       ? coverImageCloudinaryResponse?.url
       : "",
+    coverImagePublicId: coverImageCloudinaryResponse?.public_id ?? null,
   });
 
   const createdUser = await User.findById(user?._id).select(
-    "-password -refreshToken"
+    "-password -refreshToken -avatarPublicId -coverImagePublicId"
   );
 
   if (!createdUser) {
@@ -131,25 +157,25 @@ const loginUser = asyncHandler(async (req, res) => {
   // const filteredUserData = Object.keys(user)?.filter(
   //   (key) => key !== "password" && key !== "refreshToken"
   // );
-  const userObject = user.toObject();
-  delete userObject.password;
-  delete userObject.refreshToken;
+  const filteredUserObject = removeFieldsFromObject(user, [
+    "password",
+    "refreshToken",
+    "accessToken",
+    "avatarPublicId",
+    "coverImagePublicId",
+  ]);
 
-  console.log("User logged in successfully: ", userObject);
+  console.log("User logged in successfully: ", filteredUserObject);
   return res
     .status(200)
     .cookie("accessToken", accessToken, COOKIE_OPTIONS)
     .cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
     .json(
-      new APIResponse(
-        200,
-        {
-          user: userObject,
-          accessToken,
-          refreshToken,
-        },
-        "User logged in successfully!"
-      )
+      new APIResponse(200, "User logged in successfully!", {
+        user: filteredUserObject,
+        accessToken,
+        refreshToken,
+      })
     );
 });
 
@@ -217,7 +243,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req?.body;
-  console.log({ oldPassword, newPassword });
 
   if (!oldPassword || !newPassword) {
     throw new APIError(400, "Old password or new password is missing!");
@@ -247,9 +272,16 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 const getActiveUser = asyncHandler(async (req, res) => {
   const user = req?.user;
+  const filteredUserFields = removeFieldsFromObject(user, [
+    "refreshToken",
+    "accessToken",
+    "avatarPublicId",
+    "coverImagePublicId",
+  ]);
+
   return res.status(200).json(
     new APIResponse(200, "Active user details fetched successfully!", {
-      user,
+      user: filteredUserFields,
     })
   );
 });
@@ -270,7 +302,7 @@ const updateUser = asyncHandler(async (req, res) => {
       },
     },
     { new: true }
-  ).select("-password -refreshToken");
+  ).select("-password -refreshToken -avatarPublicId -coverImagePublicId");
 
   if (!updatedUser) {
     throw new APIError(500, "Unable to update user account!");
@@ -278,6 +310,73 @@ const updateUser = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new APIResponse(200, "User updated successfully!", {
+      user: updatedUser,
+    })
+  );
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarImageLocalPath = req.file?.path;
+  const user = req?.user;
+  if (!avatarImageLocalPath) {
+    throw new APIError(400, "Avatar image is missing");
+  }
+
+  const avatarImageCloudinaryResponse =
+    await uploadOnCloudinary(avatarImageLocalPath);
+  if (!avatarImageCloudinaryResponse?.url) {
+    throw new APIError(500, "Error occured while uploading avatar image");
+  }
+
+  // remove old avatar image from cloudinary
+  const oldAvatarPublicId = getPublicIdFromUrl(user?.avatar);
+  await removeFromCloudinary(oldAvatarPublicId);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req?.user?._id,
+    {
+      $set: {
+        avatar: avatarImageCloudinaryResponse?.url,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res.status(200).json(
+    new APIResponse(200, "User avatar image updated successfully!", {
+      user: updatedUser,
+    })
+  );
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+  const user = req?.user;
+  if (!coverImageLocalPath) {
+    throw new APIError(400, "Cover image is missing");
+  }
+
+  const coverImageCloudinaryResponse =
+    await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImageCloudinaryResponse?.url) {
+    throw new APIError(500, "Error occured while uploading cover image");
+  }
+
+  const oldCoverImagePublicId = getPublicIdFromUrl(user?.coverImage);
+  await removeFromCloudinary(oldCoverImagePublicId);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req?.user?._id,
+    {
+      $set: {
+        coverImage: coverImageCloudinaryResponse?.url,
+      },
+    },
+    { new: true }
+  ).select("-password, -refreshToken -avatarPublicId -coverImagePublicId");
+
+  return res.status(200).json(
+    new APIResponse(200, "User cover image updated successfully!", {
       user: updatedUser,
     })
   );
@@ -291,5 +390,7 @@ export {
   refreshAccessToken,
   changeCurrentPassword,
   getActiveUser,
-  updateUser
+  updateUser,
+  updateUserAvatar,
+  updateUserCoverImage,
 };

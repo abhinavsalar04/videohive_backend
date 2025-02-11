@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import { APIError } from "./APIError";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -25,4 +26,14 @@ async function uploadOnCloudinary(localFilePath) {
   }
 }
 
-export { uploadOnCloudinary };
+async function removeFromCloudinary(assetPublicId) {
+  try {
+    if (!assetPublicId) throw new Error("Could not find public_id");
+    const response = await cloudinary.uploader.destroy(assetPublicId);
+    return response
+  } catch (error) {
+    throw new APIError(500, error?.message);
+  }
+}
+
+export { uploadOnCloudinary, removeFromCloudinary };
