@@ -382,6 +382,79 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   );
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { channel } = req.params;
+
+  if (!channel?.trim()) {
+    throw new APIError(400, "Channel name is required!");
+  }
+
+  const userChannelProfile = await User.aggregate([
+    {
+      $match: {
+        username: channel?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      }
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        subscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req?.user?._id, "$subscribers"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        username: 1,
+        fullName: 1,
+        email: 1,
+        coverImage: 1,
+        avatar: 1,
+        subscribedToCount: 1,
+        subscribersCount: 1,
+        isSubscribed: 1
+      },
+    },
+  ]);
+
+  console.log({ userChannelProfile });
+  if (!userChannelProfile) {
+    throw new APIError(400, "Invalid channel name");
+  }
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      "Channel details fetched successfully!",
+      userChannelProfile[0] //the result of aggregation pipeline will be an array and only first element will contain the desired result.
+    )
+  );
+});
 
 export {
   registerUser,
@@ -393,4 +466,5 @@ export {
   updateUser,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
 };
