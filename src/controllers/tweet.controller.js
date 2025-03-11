@@ -50,16 +50,20 @@ const getTweet = asyncHandler(async (req, res) => {
 
 const getUserTweets = asyncHandler(async (req, res) => {
   const { _id } = req?.user;
-  if (!_id) {
+  const { userId } = req.params;
+  console.log({userId, _id})
+
+  // here _id is a mongo db _id but userId is a string so we can not compare equality with type
+  if (!_id || _id != userId) {
     throw new APIError(403, "Invalid user");
   }
 
   const tweets = await Tweet.find({
-    owner: _id,
+    owner: userId,
   });
 
   if (!tweets) {
-    throw new APIError(500, "Internal server error. Unable to get tweets");
+    throw new APIError(500, "Invalid userId");
   }
 
   return res
@@ -84,7 +88,7 @@ const updateTweet = asyncHandler(async (req, res) => {
   );
 
   if (!updatedTweet) {
-    throw new APIError(500, "Internal server error! Unable to update tweet.");
+    throw new APIError(500, "Invalid tweetId");
   }
 
   return res
@@ -101,7 +105,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
   const tweet = await Tweet.findByIdAndDelete(tweetId);
 
   if (!tweet) {
-    throw new APIError(500, "Internal server error. Unable to delete tweet");
+    throw new APIError(400, "Invalid tweetId!");
   }
 
   return res
