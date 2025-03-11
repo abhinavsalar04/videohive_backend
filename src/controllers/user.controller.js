@@ -409,7 +409,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         localField: "_id",
         foreignField: "subscriber",
         as: "subscribedTo",
-      }
+      },
     },
     {
       $addFields: {
@@ -437,7 +437,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         avatar: 1,
         subscribedToCount: 1,
         subscribersCount: 1,
-        isSubscribed: 1
+        isSubscribed: 1,
       },
     },
   ]);
@@ -456,6 +456,68 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   );
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const { _id } = req?.user;
+
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(_id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                    email: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  if (!user) {
+    throw new APIError(400, "Invalid user credentials!");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new APIResponse(
+        200,
+        "User watch history fetched successfully!",
+        user[0]?.watchHistory ?? []
+      )
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -467,4 +529,5 @@ export {
   updateUserAvatar,
   updateUserCoverImage,
   getUserChannelProfile,
+  getWatchHistory,
 };
