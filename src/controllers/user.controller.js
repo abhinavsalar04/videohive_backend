@@ -100,11 +100,9 @@ const registerUser = asyncHandler(async (req, res) => {
     password,
     fullName,
     avatar: avatarCloudinaryResponse?.url,
-    avatarPublicId: avatarCloudinaryResponse?.public_id,
     coverImage: coverImageCloudinaryResponse
       ? coverImageCloudinaryResponse?.url
       : "",
-    coverImagePublicId: coverImageCloudinaryResponse?.public_id ?? null,
   });
 
   const createdUser = await User.findById(user?._id).select(
