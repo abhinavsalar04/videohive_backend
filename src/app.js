@@ -18,11 +18,13 @@ app.use(cookieParser());
 // routes imports
 import { userRouter } from "./routes/user.routes.js";
 import { tweetRouter } from "./routes/tweet.routes.js";
+import { videoRouter } from "./routes/video.routes.js";
 
 // as the separate userRouter so we can create routes like app.get("/", controller) here
 //  we need to use router as middleware
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/tweets", tweetRouter);
+app.use("/api/v1/videos", videoRouter);
 
 // routes declarations
 

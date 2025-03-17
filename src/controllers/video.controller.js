@@ -5,8 +5,47 @@ import { Video } from "../models/video.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search, sortBy, sortType, userId } = req.query;
-  
+  const { page = 1, limit = 10, search, sortBy, sortType } = req.query;
+  const { userId } = req.params;
+
+  if (!userId) {
+    throw new APIError(400, "UserId is required!");
+  }
+
+  const searchRegex = new RegExp(search, "i");
+  const searchQuery = {
+    owner: userId,
+  };
+
+  if (search?.trim()) {
+    searchQuery.$or = [{ title: searchRegex }, { description: searchRegex }];
+  }
+
+  const sortingParams = {};
+  if (sortBy && sortType) {
+    sortingParams[sortBy] = sortType === "asc" ? 1 : -1;
+  }
+
+  const documentsCount = await Video.countDocuments(searchQuery);
+  const totalPages = Math.max(Math.ceil(documentsCount / limit), 1);
+  const skippedDocuments = (page - 1) * limit;
+
+  const videosData = await Video.find(searchQuery)
+    .sort(sortingParams)
+    .skip(skippedDocuments)
+    .limit(limit);
+
+  if (!videosData) {
+    throw new APIError(400, "Invalid userId!");
+  }
+
+  return res.status(200).json(
+    new APIResponse(200, "Videos fetched successfully!", {
+      videos: videosData,
+      pages: totalPages,
+      count: documentsCount,
+    })
+  );
 });
 
 const publishVideo = asyncHandler(async (req, res) => {
@@ -70,7 +109,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     throw new APIError(400, "Video Id is required!");
   }
 
-  const video = await Video.findById(videoId);
+  const video = await Video.findById(videoId).select("-owner");
 
   if (!video) {
     throw new APIError(400, "Invalid videoId!");
@@ -84,13 +123,13 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   const { _id } = req.user;
-  
-  if(!_id) {
-    throw new APIError(403, "Invalid user!")
+
+  if (!_id) {
+    throw new APIError(403, "Invalid user!");
   }
-  
+
   const { title, description } = req.body;
-  const thumbnailFileLocalPath = req.files?.thumbnail?.[0]?.path;
+  const thumbnailFileLocalPath = req?.file?.path;
 
   if ([title, description]?.some((item) => !item || item?.trim() === "")) {
     throw new APIError(400, "Title or description is missing");
@@ -100,19 +139,23 @@ const updateVideo = asyncHandler(async (req, res) => {
     ? await uploadOnCloudinary(thumbnailFileLocalPath)
     : null;
 
-  if (!thumbnailCloudinaryResponse) {
+  if (thumbnailFileLocalPath && !thumbnailCloudinaryResponse) {
     throw new APIError(500, "Server error! Unable to upload thumbnail");
   }
 
-  const publishedVideo = await Video.findByIdAndUpdate(videoId, [
-    {
-      $set: {
-        title,
-        description,
-        thumbnail: { $ifNull: [thumbnailCloudinaryResponse?.url, "$age"] },
+  const publishedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    [
+      {
+        $set: {
+          title,
+          description,
+          thumbnail: { $ifNull: [thumbnailCloudinaryResponse?.url, "$age"] },
+        },
       },
-    },
-  ]);
+    ],
+    { new: true }
+  ).select("-owner");
 
   if (!publishedVideo) {
     throw new APIError(500, "Server error! Unable to publish video");
@@ -150,10 +193,9 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     throw new APIError(400, "Video Id is required!");
   }
 
-  // this is the way to use existing field value.
   const video = await Video.findByIdAndUpdate(videoId, [
-    { $set: { isValid: { $not: ["$isValid"] } } },
-  ]);
+    { $set: { isPublished: { $not: ["$isPublished"] } } },
+  ]).select("-owner");
 
   if (!video) {
     throw new APIError(400, "Invalid videoId!");
@@ -161,10 +203,16 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new APIResponse(200, "Video deleted successfully!"));
+    .json(
+      new APIResponse(
+        200,
+        `Video ${video?.isPublished ? "published" : "unpublished"} successfully!`,
+        video
+      )
+    );
 });
 
-return {
+export {
   getAllVideos,
   getVideoById,
   updateVideo,
