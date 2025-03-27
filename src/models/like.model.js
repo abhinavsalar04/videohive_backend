@@ -10,7 +10,6 @@ const likeSchema = new mongoose.Schema(
     video: {
         type: mongoose.Types.ObjectId,
         ref: "Video",
-        required: [true, "Video is required"]
     },
     comment: {
         type: mongoose.Types.ObjectId,

@@ -82,6 +82,7 @@ const deleteComment = asyncHandler(async (req, res) => {
     .json(new APIResponse(200, "Comment deleted successfully!"));
 });
 
+// there is some issue with thie.
 const getCommentById = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
   const { _id: owner, username, email, avatar, coverImage } = req.user;
