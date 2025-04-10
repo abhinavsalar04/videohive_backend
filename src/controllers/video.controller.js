@@ -3,6 +3,8 @@ import { APIResponse } from "../utils/APIResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Video } from "../models/video.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import mongoose from "mongoose";
+import { Like } from "../models/like.model.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, sortBy, sortType } = req.query;
@@ -104,12 +106,39 @@ const publishVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+  const { _id: userId } = req?.user
 
   if (!videoId) {
     throw new APIError(400, "Video Id is required!");
   }
 
   const video = await Video.findById(videoId).select("-owner");
+  const videoWithCommentsAndLikes = await Video.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(videoId) }
+    },
+    {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "video",
+        as: "likes",
+      }
+    },
+    {
+      $addFields: {
+        likes: {
+          $size: "$likes"
+        },
+      }
+    },
+  ])
+
+  const isLikedByUser = await Like.exists({ video: videoId, likedBy: userId })
+  const mergedVideoData = {
+    ...videoWithCommentsAndLikes[0],
+    isLiked: !!isLikedByUser
+  };
 
   if (!video) {
     throw new APIError(400, "Invalid videoId!");
@@ -117,7 +146,7 @@ const getVideoById = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new APIResponse(200, "Video details fetched successfully!", video));
+    .json(new APIResponse(200, "Video details fetched successfully!", mergedVideoData));
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
@@ -212,6 +241,32 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     );
 });
 
+const updateVideoVisiblity = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const { visibility } = req.body
+  if (!videoId || !visibility) {
+    throw new APIError(400, "Video Id or visibility is required!");
+  }
+
+  const video = await Video.findByIdAndUpdate(videoId, {
+    visibility
+  }, { new: true }).select("-owner");
+
+  if (!video) {
+    throw new APIError(400, "Invalid videoId!");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new APIResponse(
+        200,
+        `Video visiblity made ${video?.visibility} successfully!`,
+        video
+      )
+    );
+});
+
 export {
   getAllVideos,
   getVideoById,
@@ -219,4 +274,5 @@ export {
   deleteVideo,
   publishVideo,
   togglePublishStatus,
+  updateVideoVisiblity,
 };

@@ -28,6 +28,11 @@ const videoSchema = new Schema(
       required: [true, "Views is required"],
       default: 0,
     },
+    visibility: {
+      type: String,
+      enum: ["PUBLIC", "PRIVATE"],
+      default: "PUBLIC"
+    },
     isPublished: {
       type: Boolean,
       required: [true, "isPublished is required"],

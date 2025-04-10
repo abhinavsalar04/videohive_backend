@@ -7,6 +7,7 @@ import {
   publishVideo,
   togglePublishStatus,
   updateVideo,
+  updateVideoVisiblity,
 } from "../controllers/video.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
@@ -14,7 +15,7 @@ const router = Router();
 
 router.use(verifyJWT);
 
-router.route("/:userId").get(getAllVideos);
+router.route("/list/:userId").get(getAllVideos);
 router.route("/publish").post(
   upload.fields([
     {
@@ -34,6 +35,7 @@ router
   .patch(upload.single("thumbnail"), updateVideo)
   .delete(deleteVideo);
 
-router.route("/toggle-status/:videoId").patch(togglePublishStatus);
+router.route("/toggle-publish/:videoId").patch(togglePublishStatus);
+router.route("/visibility/:videoId").patch(updateVideoVisiblity);
 
-export {router as videoRouter}
+export { router as videoRouter }

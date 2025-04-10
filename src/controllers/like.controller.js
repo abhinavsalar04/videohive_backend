@@ -116,4 +116,4 @@ export { toggleVideoLike, toggleCommentLike, toggleTweetLike, getLikedVideos };
 
 
 // Todo's
-//  add get video, comment, tweet response isLiked and totatl likes 
+//  add get video, comment, tweet response isLiked and total likes 
