@@ -19,7 +19,7 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     throw new APIError(400, "Invalid videoId!");
   }
 
-  const matchedDocument = await Like.findOneAndUpdate({
+  const matchedDocument = await Like.findOne({
     video: videoId,
     likedBy: owner,
   });
@@ -49,7 +49,7 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     throw new APIError(400, "Invalid commentId!");
   }
 
-  const matchedDocument = await Like.findOneAndUpdate({
+  const matchedDocument = await Like.findOne({
     comment: commentId,
     likedBy: owner,
   });
@@ -78,7 +78,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
   if (!isTweetExists) {
     throw new APIError(400, "Invalid tweetId!");
   }
-  const matchedDocument = await Like.findOneAndUpdate({
+  const matchedDocument = await Like.findOne({
     tweet: tweetId,
     likedBy: owner,
   });

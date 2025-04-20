@@ -24,6 +24,7 @@ import {commentRouter} from "./routes/comment.routes.js"
 import { likeRouter } from "./routes/like.routes.js";
 import {healthCheckRouter} from "./routes/healthCheck.routes.js"
 import {subscriptionRouter} from "./routes/subscription.routes.js" 
+import { dashboardRouter } from "./routes/dashboard.routes.js";
 
 // as the separate userRouter so we can create routes like app.get("/", controller) here
 //  we need to use router as middleware
@@ -35,6 +36,7 @@ app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/healthCheck", healthCheckRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter)
+app.use("/api/v1/dashboard", dashboardRouter)
 
 
 export default app;

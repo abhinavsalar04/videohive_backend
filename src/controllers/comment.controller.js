@@ -48,6 +48,10 @@ const updateComment = asyncHandler(async (req, res) => {
     { new: true }
   );
 
+  if(!updatedComment){
+    throw new APIError(400, "Invalid comment data!")
+  }
+  
   const updatedCommentWithAppendedUserDetails = {
     ...updatedComment.toObject(),
     owner: { username, email, avatar, coverImage },
